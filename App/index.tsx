@@ -18,11 +18,12 @@ import {
 import {BASE_URL} from 'react-native-dotenv';
 import Welcome from "./src/components/Welcome"
 
-const App = () => {
+const App = ({userId}) => {
   const [state, setState] = useState({
     welcome:true,
     videos: [],
   });
+
 
   const [lastEventType, setLastEventType] = React.useState('');
 
@@ -63,7 +64,12 @@ const App = () => {
     }
   };
 
+  const loadUser = async () => {
+    console.log(userId)
+  }
+
   useEffect(() => {
+    loadUser()
     loadVideos();
   }, []);
   
