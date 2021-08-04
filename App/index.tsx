@@ -6,26 +6,33 @@ import ReactNative, {
   ScrollView,
   StyleSheet,
   Text,
+  TVEventHandler, useTVEventHandler,
   useColorScheme,
   View,
 } from 'react-native';
 
 import {
   Colors,
-  DebugInstructions,
-  Header,
-  LearnMoreLinks,
-  ReloadInstructions,
 } from 'react-native/Libraries/NewAppScreen';
 //@ts-expect-error
 import {BASE_URL} from 'react-native-dotenv';
-
-import Section from './contentSection';
+import Welcome from "./src/components/Welcome"
 
 const App = () => {
   const [state, setState] = useState({
+    welcome:true,
     videos: [],
   });
+
+  const [lastEventType, setLastEventType] = React.useState('');
+
+  const myTVEventHandler = evt => {
+    console.log(evt.eventType)
+// 'right', 'up','left','down','playPause', 'select'
+    setLastEventType(evt.eventType);
+  };
+
+  useTVEventHandler(myTVEventHandler);
 
   const loadVideos = async () => {
     try {
@@ -59,11 +66,21 @@ const App = () => {
   useEffect(() => {
     loadVideos();
   }, []);
+  
+  useEffect(() => {
+    setTimeout(() => {
+      setState(s => ({...s, welcome:false}))
+    }, 1500);
+  }, []);
   const isDarkMode = useColorScheme() === 'dark';
 
   const backgroundStyle = {
     backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
   };
+
+  if(state.welcome){
+    return <Welcome />
+  }
 
   return (
     <SafeAreaView style={backgroundStyle}>
@@ -84,6 +101,7 @@ const App = () => {
       </ScrollView>
       {state.videos && state.videos[0] && (
         <Video
+        controls
           style={styles.backgroundVideo}
           source={{uri: state.videos[0].url}}
         />
