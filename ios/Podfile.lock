@@ -244,6 +244,8 @@ PODS:
     - React-cxxreact (= 0.64.2-1)
     - React-jsi (= 0.64.2-1)
     - React-perflogger (= 0.64.2-1)
+  - RNSVG (12.1.1):
+    - React
   - Yoga (1.14.0)
 
 DEPENDENCIES:
@@ -275,6 +277,7 @@ DEPENDENCIES:
   - React-RCTText (from `../node_modules/react-native/Libraries/Text`)
   - React-runtimeexecutor (from `../node_modules/react-native/ReactCommon/runtimeexecutor`)
   - ReactCommon/turbomodule/core (from `../node_modules/react-native/ReactCommon`)
+  - RNSVG (from `../node_modules/react-native-svg`)
   - Yoga (from `../node_modules/react-native/ReactCommon/yoga`)
 
 SPEC REPOS:
@@ -334,6 +337,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native/ReactCommon/runtimeexecutor"
   ReactCommon:
     :path: "../node_modules/react-native/ReactCommon"
+  RNSVG:
+    :path: "../node_modules/react-native-svg"
   Yoga:
     :path: "../node_modules/react-native/ReactCommon/yoga"
 
@@ -365,6 +370,7 @@ SPEC CHECKSUMS:
   React-RCTText: cdab7879b7d879e2f4e5c76bc6ba55cb759a3673
   React-runtimeexecutor: d866e2367f95245cc61c8f868263a80b8b51c85e
   ReactCommon: bd932f044523d00b8bf160a96f4d617177fcdbc1
+  RNSVG: 551acb6562324b1d52a4e0758f7ca0ec234e278f
   Yoga: 2ab50ac2dd6f47edf1cb7c837b6f6a8d66cfc39d
 
 PODFILE CHECKSUM: 4c8a74817672cec3c044dace9869022ebdbb01fa
