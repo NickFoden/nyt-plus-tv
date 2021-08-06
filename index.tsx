@@ -3,8 +3,6 @@ import React, {useEffect, useState} from 'react';
 import {AppRegistry, LogBox, Settings} from 'react-native';
 import {Provider} from 'react-redux';
 import uuid from 'react-native-uuid';
-import * as eva from '@eva-design/eva';
-import { ApplicationProvider } from '@ui-kitten/components';
 import App from './App';
 import {name as appName} from './app.json';
 import configureStore from './App/src/redux/store';
@@ -32,11 +30,9 @@ const NYT = () => {
   }, []);
 
   return (
-    <ApplicationProvider {...eva} theme={eva.dark}>
     <Provider store={store}>
       <App userId={userId} />
     </Provider>
-    </ApplicationProvider>
   );
 };
 AppRegistry.registerComponent(appName, () => NYT);
