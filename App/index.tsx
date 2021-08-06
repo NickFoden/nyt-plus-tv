@@ -14,6 +14,10 @@ import ReactNative, {
   TouchableOpacity,
   // TVEventHandler,
   //@ts-expect-error
+  TVFocusGuideView,
+  //@ts-expect-error
+  TVTextScrollView,
+  //@ts-expect-error
   useTVEventHandler,
   useColorScheme,
   View,
@@ -22,7 +26,7 @@ import {NYTVideo} from 'nyt-plus';
 
 import {Colors} from 'react-native/Libraries/NewAppScreen';
 //@ts-expect-error
-import {BASE_URL} from 'react-native-dotenv';
+import {BASE_URL, FAUNA_URL, FAUNA_API_SECRET} from 'react-native-dotenv';
 import Welcome from './src/components/Welcome';
 import {saveWatchedVideo} from './src/redux/action';
 import {useTypedSelector} from './src/redux/reducer';
@@ -34,21 +38,31 @@ const App = ({userId}) => {
   const watchedVideos = useTypedSelector(state => state.watched);
   const width = Dimensions.get('window').width;
   const [state, setState] = useState<{
+    category: 'all' | 'opDocs' | 'opinion' | 'diaryOfASong';
     selected: string;
+    preferredFocus: number;
     preview: string;
     searchActive: boolean;
     searchQuery: string;
     welcome: boolean;
     videos: NYTVideo[];
   }>({
+    category: 'all',
     // selected: '306103814828589636',
     selected: '',
+    preferredFocus: 0,
     preview: '306103814828589636',
     searchActive: false,
     searchQuery: '',
     welcome: true,
     videos: [],
   });
+
+  let allVideos = [...state.videos];
+
+  if (state.category !== 'all') {
+    allVideos = [...state.videos].filter(V => V.category === state.category);
+  }
 
   // useEffect(() => {
   //   const backAction = () => {
@@ -64,10 +78,21 @@ const App = ({userId}) => {
   //   return () => backHandler.remove();
   // }, []);
 
-  const myTVEventHandler = evt => {
-    console.log(evt.eventType);
-    if (state.selected && state.videos[0] && evt.eventType === 'select') {
-      const currentVideo = state.videos.find(V => V.id === state.selected);
+  const myTVEventHandler = (evt: {eventType:string}) => {
+    if (
+      evt.eventType !== 'blur' &&
+      evt.eventType !== 'select' &&
+      evt.eventType !== 'focus'
+    ) {
+      console.log(evt.eventType);
+    }
+    // EXIT A PLAYING VIDEO
+    if (
+      state.selected &&
+      state.videos.length > 0 &&
+      evt.eventType === 'select'
+    ) {
+      const currentVideo = state.videos.find(V => V._id === state.selected);
       if (currentVideo) {
         dispatch(
           saveWatchedVideo({
@@ -78,48 +103,125 @@ const App = ({userId}) => {
       }
       setState(S => ({...S, selected: ''}));
     }
+    //IF IN THE SIDE MENU
+    if (state.preferredFocus > 0) { 
+      if (evt.eventType === 'swipeRight' || evt.eventType === 'right' ) {
+        setState(S => ({...S, preferredFocus: 0}));
+      } else if (
+        (state.preferredFocus < 6 && evt.eventType === 'swipeDown') ||
+        (state.preferredFocus < 6 && evt.eventType === 'down')
+      ) {
+        setState(S => ({...S, preferredFocus: S.preferredFocus + 1}));
+      } else if (
+        (state.preferredFocus < 7 && evt.eventType === 'swipeUp') ||
+        (state.preferredFocus < 7 && evt.eventType === 'up')
+      ) {
+        setState(S => ({...S, preferredFocus: S.preferredFocus - 1}));
+      }
+    }
+    // IF IN THUMBNAIL FIELD to gain access to side nav
+    const currentIndex = allVideos.findIndex(V => V._id === state.preview);
+    if (currentIndex % 6 === 0 && evt.eventType === 'swipeLeft') {
+      setState(S => ({...S, preferredFocus: 1}));
+    }
     // 'right', 'up','left','down','playPause', 'select'
   };
 
   useTVEventHandler(myTVEventHandler);
 
-  const loadVideos = async () => {
-    try {
-      const result = await fetch(`${BASE_URL}/graphql`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-        },
-        body: JSON.stringify({
-          query: `query {
-                    videos {
-                      id
-                      byline
-                      category
-                      cursor
-                      headline
-                      promotionalMedia{
-                        credit
-                        url
-                      }
-                      summary
-                      video {
-                        type
-                        url
-                      }
-                      tags
-                    }
-                  }`,
-        }),
-      })
-        .then(r => r.json())
-        .then(R => R);
-      if (result.data) {
-        setState(s => ({...s, videos: result.data.videos}));
+  const loadVideos = async (after: string) => {
+    if (!after) {
+      try {
+        const result = await fetch(`${FAUNA_URL}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+            Authorization: `Bearer ${FAUNA_API_SECRET}`,
+          },
+          body: JSON.stringify({
+            query: `
+        query {
+          videos {
+            after
+            data {
+              _id
+              byline
+              category
+              cursor
+              headline
+              promotionalMediaUrl
+              promotionalMediaCredit
+              summary
+              tags
+              videoType
+              videoUrl
+            }
+          }
+        }  
+        `,
+          }),
+        })
+          .then(r => r.json())
+          .then(R => R);
+        if (result?.data?.videos?.data) {
+          setState(s => ({...s, videos: result.data.videos.data}));
+        }
+        if (result.data.videos.after) {
+          loadVideos(result.data.videos.after);
+        }
+      } catch (e) {
+        console.error(e);
       }
-    } catch (e) {
-      console.error(e);
+    } else {
+      try {
+        const result = await fetch(`${FAUNA_URL}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+            Authorization: `Bearer ${FAUNA_API_SECRET}`,
+          },
+          body: JSON.stringify({
+            query: `
+          query {
+            videos (
+              _cursor: "${after}"
+            ) {
+              after
+              data {
+                _id
+                byline
+                category
+                cursor
+                headline
+                promotionalMediaUrl
+                promotionalMediaCredit
+                summary
+                tags
+                videoType
+                videoUrl
+              }
+            }
+          }  
+          `,
+          }),
+        })
+          .then(r => r.json())
+          .then(R => R);
+
+        if (result?.data?.videos?.data) {
+          setState(s => ({
+            ...s,
+            videos: [...s.videos, ...result.data.videos.data],
+          }));
+        }
+        if (result?.data?.videos?.after) {
+          loadVideos(result.data.videos.after);
+        }
+      } catch (e) {
+        console.error(e);
+      }
     }
   };
 
@@ -129,7 +231,10 @@ const App = ({userId}) => {
 
   useEffect(() => {
     loadUser();
-    loadVideos();
+  }, []);
+
+  useEffect(() => {
+    loadVideos('');
   }, []);
 
   useEffect(() => {
@@ -140,13 +245,13 @@ const App = ({userId}) => {
   const handleRandom = () => {
     const randomVideo =
       state.videos[Math.floor(Math.random() * state.videos.length)];
-    setState(S => ({...S, selected: randomVideo.id}));
+    setState(S => ({...S, selected: randomVideo._id}));
   };
 
   const handleSearch = (s: string) => {
     setState(S => ({...S, searchQuery: s}));
   };
-  
+
   const handleStartSearch = () => {
     setState(S => ({...S, searchActive: true}));
   };
@@ -155,10 +260,10 @@ const App = ({userId}) => {
     return <Welcome />;
   }
 
-  const currentVideo = state.videos.find(V => V.id === state.selected);
+  const currentVideo = state.videos.find(V => V._id === state.selected);
 
   if (currentVideo) {
-    const alreadyStarted = watchedVideos.find(W => W.id === state.selected);
+    const alreadyStarted = watchedVideos.find(W => W._id === state.selected);
     return (
       <Video
         ref={videoRef}
@@ -173,7 +278,7 @@ const App = ({userId}) => {
         }}
         fullscreen
         style={styles.backgroundVideo}
-        source={{uri: currentVideo.video.url}}
+        source={{uri: currentVideo.videoUrl}}
         onLoad={() => {
           // SKIP AHEAD TO RESUME IF ALREADY STARTED
           if (alreadyStarted && alreadyStarted.currentPlayBackTime > 0)
@@ -215,18 +320,19 @@ const App = ({userId}) => {
           numColumns={6}
           renderItem={({item}) => (
             <TouchableOpacity
-              key={item.id}
+              key={item._id}
               onPress={() => {
-                setState(S => ({...S, selected: item.id}));
+                setState(S => ({...S, selected: item._id}));
               }}
               onFocus={() => {
-                setState(S => ({...S, preview: item.id}));
+                setState(S => ({...S, preview: item._id}));
               }}>
               <View>
                 <Image
                   style={styles.thumbnail}
                   source={{
-                    uri: item.promotionalMedia.url,
+                    cache: 'default',
+                    uri: item.promotionalMediaUrl,
                   }}
                 />
                 <Text style={{color: 'white'}}>
@@ -235,29 +341,71 @@ const App = ({userId}) => {
               </View>
             </TouchableOpacity>
           )}
-          keyExtractor={({id}) => id}
+          keyExtractor={({_id}) => _id}
         />
       </SafeAreaView>
     );
   }
 
-  const previewVideo = state.videos.find(V => V.id === state.preview);
+  const previewVideo =
+    allVideos.find(V => V._id === state.preview) || allVideos[0] || {};
   return (
     <SafeAreaView style={styles.backgroundStyle}>
       <View style={styles.sidebar}>
-        <TouchableOpacity style={styles.menuItem} onPress={handleStartSearch}>
-          <Text style={{color: 'black'}}>Search</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.menuItem} onPress={handleRandom}>
-          <Text style={{color: 'black'}}>Random Video</Text>
-        </TouchableOpacity>
+        <TVTextScrollView isTVSelectable={true}>
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={handleStartSearch}
+            hasTVPreferredFocus={state.preferredFocus === 1}>
+            <Text style={{color: 'black'}}>Search</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => {
+              setState(s => ({...s, category: 'opDocs'}));
+            }}
+            hasTVPreferredFocus={state.preferredFocus === 2}>
+            <Text style={{color: 'black'}}>Opinion Docs </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.menuItem}
+            hasTVPreferredFocus={state.preferredFocus === 3}
+            onPress={() => {
+              setState(s => ({...s, category: 'opinion'}));
+            }}>
+            <Text style={{color: 'black'}}>Opinion</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.menuItem}
+            hasTVPreferredFocus={state.preferredFocus === 4}
+            onPress={() => {
+              setState(s => ({...s, category: 'diaryOfASong'}));
+            }}>
+            <Text style={{color: 'black'}}>Diary of a Song</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.menuItem}
+            hasTVPreferredFocus={state.preferredFocus === 5}
+            onPress={() => {
+              setState(s => ({...s, category: 'all'}));
+            }}>
+            <Text style={{color: 'black'}}>All Videos</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={handleRandom}
+            hasTVPreferredFocus={state.preferredFocus === 6}>
+            <Text style={{color: 'black'}}>Random Video</Text>
+          </TouchableOpacity>
+        </TVTextScrollView>
       </View>
       <View style={styles.mainContent}>
-        <View>
+        <View key={previewVideo._id}>
           <Image
             style={styles.previewImage}
             source={{
-              uri: previewVideo.promotionalMedia.url,
+              cache: 'force-cache',
+              uri: previewVideo.promotionalMediaUrl,
             }}
           />
         </View>
@@ -269,22 +417,23 @@ const App = ({userId}) => {
         style={styles.scrollStyle}> */}
         <FlatList
           // style={styles.FlatlistStyles}
-          data={state.videos}
+          data={allVideos}
           numColumns={6}
           renderItem={({item}) => (
             <TouchableOpacity
-              key={item.id}
+              key={item._id}
               onPress={() => {
-                setState(S => ({...S, selected: item.id}));
+                setState(S => ({...S, selected: item._id}));
               }}
               onFocus={() => {
-                setState(S => ({...S, preview: item.id}));
+                setState(S => ({...S, preview: item._id}));
               }}>
               <View>
                 <Image
                   style={styles.thumbnail}
                   source={{
-                    uri: item.promotionalMedia.url,
+                    cache: 'force-cache',
+                    uri: item.promotionalMediaUrl,
                   }}
                 />
                 <Text style={{color: 'white'}}>
@@ -293,7 +442,7 @@ const App = ({userId}) => {
               </View>
             </TouchableOpacity>
           )}
-          keyExtractor={({id}) => id}
+          keyExtractor={({_id}) => _id}
         />
       </View>
     </SafeAreaView>
@@ -333,10 +482,11 @@ const styles = StyleSheet.create({
   mainContent: {
     alignItems: 'center',
     marginLeft: -200,
-    width: "100%",
+    width: '100%',
   },
   menuItem: {
     backgroundColor: 'white',
+    borderRadius: 10,
     padding: 25,
     marginTop: 50,
   },
@@ -347,13 +497,13 @@ const styles = StyleSheet.create({
   },
   previewText: {
     color: 'white',
-    marginTop:10,
+    marginTop: 10,
     maxWidth: 500,
   },
-  previewTextHeadline:{
+  previewTextHeadline: {
     color: 'white',
     fontSize: 20,
-    marginTop:10,
+    marginTop: 10,
     maxWidth: 500,
   },
   scrollStyle: {
@@ -363,8 +513,9 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   sidebar: {
-    backgroundColor: 'blue',
+    // backgroundColor: 'blue',
     height: 900,
+    paddingTop: 20,
     width: 200,
   },
   thumbnail: {

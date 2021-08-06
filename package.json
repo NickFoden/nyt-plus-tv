@@ -11,12 +11,9 @@
     "lint": "eslint ."
   },
   "dependencies": {
-    "@eva-design/eva": "^2.1.1",
-    "@ui-kitten/components": "^5.1.1",
-    "react": "17.0.1",
-    "react-native": "npm:react-native-tvos@0.64.2-1",
+    "react": "16.13.1",
+    "react-native": "https://github.com/react-native-tvos/react-native-tvos#left-right-press",
     "react-native-dotenv": "^3.1.1",
-    "react-native-svg": "^12.1.1",
     "react-native-uuid": "^2.0.1",
     "react-native-video": "^5.1.1",
     "react-redux": "^7.2.4",

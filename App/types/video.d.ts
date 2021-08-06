@@ -1,17 +1,19 @@
 declare module 'nyt-plus' {
   export interface NYTVideo {
-    id: string;
+    _id: string;
     byline: string;
     category: string;
     cursor: string;
     headline: string;
-    promotionalMedia: {credit: string; url: string};
+    promotionalMediaCredit: string;
+    promotionalMediaUrl: string;
     summary: string;
     tags: string[];
-    video: {type: string; url: string};
+    videoType: string;
+    videoUrl: string;
   }
 
   export interface WatchedVideo extends NYTVideo {
-    currentPlayBackTime: number
+    currentPlayBackTime: number;
   }
 }

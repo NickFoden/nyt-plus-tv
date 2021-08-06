@@ -4,7 +4,6 @@ import {
   Text,
   View,
 } from 'react-native';
-// import { SvgXml } from 'react-native-svg';
 // import Logo from "../static/svg/logo-icon.svg"
 
 const Welcome = () => {
